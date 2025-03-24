@@ -3,11 +3,13 @@ package com.benny.pxerstudio.activity
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.view.animation.AccelerateDecelerateInterpolator
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.benny.pxerstudio.R
 import com.benny.pxerstudio.databinding.ActivitySplashBinding
 import com.benny.pxerstudio.util.displayToast
@@ -36,48 +38,43 @@ class SplashActivity : AppCompatActivity() {
             .setDuration(2000L)
             .interpolator = AccelerateDecelerateInterpolator()
 
-//        AdHelper.checkAndInitAd(this)
-
         handler = Handler()
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_EXTERNAL_STORAGE,
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            handler!!.postDelayed({
-                startActivity(Intent(this@SplashActivity, DrawingActivity::class.java))
-                finish()
-            }, 2000L)
+        checkPermissionsAndProceed()
+    }
+
+    private fun checkPermissionsAndProceed() {
+        val permissions = mutableListOf<String>()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.READ_MEDIA_IMAGES)
         } else {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(
-                    Manifest.permission.READ_EXTERNAL_STORAGE,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                ),
-                0x456,
-            )
+            permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+        if (permissions.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }) {
+            navigateToDrawingActivity()
+        } else {
+            ActivityCompat.requestPermissions(this, permissions.toTypedArray(), 0x456)
         }
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<String>,
-        grantResults: IntArray,
-    ) {
-        if (requestCode == 0x456) {
-            for (i in grantResults.indices) {
-                if (grantResults[i] == PackageManager.PERMISSION_DENIED) {
-                    displayToast(R.string.storage_permission_denied)
-                    handler!!.postDelayed({ recreate() }, 1000)
-                    return
-                }
-            }
-            handler!!.postDelayed({
-                startActivity(Intent(this@SplashActivity, DrawingActivity::class.java))
-                finish()
-            }, 2000L)
-        }
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == 0x456) {
+            if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                navigateToDrawingActivity()
+            } else {
+                displayToast(R.string.storage_permission_denied)
+                handler!!.postDelayed({ recreate() }, 1000)
+            }
+        }
+    }
+
+    private fun navigateToDrawingActivity() {
+        handler!!.postDelayed({
+            startActivity(Intent(this@SplashActivity, DrawingActivity::class.java))
+            finish()
+        }, 2000L)
     }
 }

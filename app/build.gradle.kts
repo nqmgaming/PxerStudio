@@ -7,13 +7,13 @@ plugins {
 }
 
 android {
-    compileSdk = 33
+    compileSdk = 35
     namespace = "com.benny.pxerstudio"
 
     defaultConfig {
         applicationId = "com.benny.pxerstudio"
         minSdk = 21
-        targetSdk = 33
+        targetSdk = 35
         versionCode = 9
         versionName = "1.2.0"
 
