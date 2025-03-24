@@ -46,6 +46,9 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.max
 import kotlin.math.min
+import androidx.core.graphics.set
+import androidx.core.graphics.get
+import androidx.core.graphics.withMatrix
 
 /**
  * Created by BennyKok on 10/3/2016.
@@ -273,7 +276,7 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
             pxerLayers.add(layer)
             for (x in out[i].pxers.indices) {
                 val p = out[i].pxers[x]
-                pxerLayers[i]!!.bitmap!!.setPixel(p.x, p.y, p.color)
+                pxerLayers[i]!!.bitmap!![p.x, p.y] = p.color
             }
         }
         onLayerUpdate()
@@ -300,11 +303,11 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
                 Pxer(
                     pxer.x,
                     pxer.y,
-                    pxerLayers[currentLayer]!!.bitmap!!.getPixel(pxer.x, pxer.y),
+                    pxerLayers[currentLayer]!!.bitmap!![pxer.x, pxer.y],
                 ),
             )
             val coord = history[currentLayer]!![historyIndex[currentLayer]!!].pxers[i]
-            pxerLayers[currentLayer]!!.bitmap!!.setPixel(coord.x, coord.y, coord.color)
+            pxerLayers[currentLayer]!!.bitmap!![coord.x, coord.y] = coord.color
         }
         redohistory[currentLayer]!!.add(PxerHistory(cloneList(currentHistory)))
         currentHistory.clear()
@@ -323,11 +326,11 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
                 Pxer(
                     pxer.x,
                     pxer.y,
-                    pxerLayers[currentLayer]!!.bitmap!!.getPixel(pxer.x, pxer.y),
+                    pxerLayers[currentLayer]!!.bitmap!![pxer.x, pxer.y],
                 ),
             )
             pxer = redohistory[currentLayer]!![redohistory[currentLayer]!!.size - 1].pxers[i]
-            pxerLayers[currentLayer]!!.bitmap!!.setPixel(pxer.x, pxer.y, pxer.color)
+            pxerLayers[currentLayer]!!.bitmap!![pxer.x, pxer.y] = pxer.color
         }
         historyIndex[currentLayer] = historyIndex[currentLayer]!! + 1
         history[currentLayer]!!.add(PxerHistory(cloneList(currentHistory)))
@@ -340,8 +343,6 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
         return if (projectName == null || projectName!!.isEmpty()) {
             if (force) {
                 MaterialDialog(context)
-//                .titleGravity(GravityEnum.CENTER)
-//                .inputRange(0, 20)
                     .title(R.string.save_project)
                     .input(context.getString(R.string.name), inputType = InputType.TYPE_CLASS_TEXT) { _, text ->
                         projectName = "$text"
@@ -369,7 +370,7 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
                 out.add(pxableLayer)
                 for (x in 0 until pxerLayers[i]!!.bitmap!!.width) {
                     for (y in 0 until pxerLayers[i]!!.bitmap!!.height) {
-                        val pc = pxerLayers[i]!!.bitmap!!.getPixel(x, y)
+                        val pc = pxerLayers[i]!!.bitmap!![x, y]
                         if (pc != Color.TRANSPARENT) {
                             out[i].pxers.add(Pxer(x, y, pc))
                         }
@@ -386,7 +387,7 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
             }
             context.saveProject(projectName + PXER_EXTENSION_NAME, gson.toJson(out))
             PreviewSaver.saveTo(
-                File(context.getExternalFilesDir("/")!!.path + "/PxerStudio/Project", projectName + ".png"),
+                File(context.getExternalFilesDir("/")!!.path + "/PxerStudio/Project", "$projectName.png"),
                 picWidth,
                 picHeight,
                 this,
@@ -449,13 +450,9 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
         for (i in 0 until picWidth) {
             for (j in 0 until picHeight * 2) {
                 if (j % 2 != 0) {
-                    bgbitmap!!.setPixel(
-                        i * 2 + 1,
-                        j,
-                        Color.argb(200, 220, 220, 220),
-                    )
+                    bgbitmap!![i * 2 + 1, j] = Color.argb(200, 220, 220, 220)
                 } else {
-                    bgbitmap!!.setPixel(i * 2, j, Color.argb(200, 220, 220, 220))
+                    bgbitmap!![i * 2, j] = Color.argb(200, 220, 220, 220)
                 }
             }
         }
@@ -496,7 +493,7 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
         val y = ((mY - picRect.top) / scaledHeight * picHeight).toInt()
         // We got x and y
         if (event.action == MotionEvent.ACTION_MOVE) {
-            if (prePressedTime != -1L && System.currentTimeMillis() - prePressedTime <= pressDelay) return true
+            if (prePressedTime != -1L && System.currentTimeMillis() - prePressedTime <= PRESS_DELAY) return true
             if (prePressedTime == -1L) return true
         }
         if (!isValid(x, y)) return true
@@ -517,29 +514,26 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
         val pxer: Pxer
         val bitmapToDraw = pxerLayers[currentLayer]!!.bitmap
         if (event.action != MotionEvent.ACTION_UP) {
-            pxer = Pxer(x, y, bitmapToDraw!!.getPixel(x, y))
+            pxer = Pxer(x, y, bitmapToDraw!![x, y])
             if (!currentHistory.contains(pxer)) currentHistory.add(pxer)
         }
         Log.v("shit", "$mode")
         when (mode) {
             Mode.Normal -> run {
                 if (event.action == MotionEvent.ACTION_DOWN || event.action == MotionEvent.ACTION_UP) return@run
-                bitmapToDraw!!.setPixel(
-                    x,
-                    y,
-                    ColorUtils.compositeColors(selectedColor, bitmapToDraw.getPixel(x, y)),
-                )
+                bitmapToDraw!![x, y] = ColorUtils.compositeColors(selectedColor, bitmapToDraw[x, y])
                 Log.v("shit", "$mode")
                 setUnrecordedChanges(true)
             }
+
             Mode.Dropper -> run {
                 if (event.action == MotionEvent.ACTION_DOWN) return@run
                 if (x == downX && downY == y) {
                     var i = 0
                     while (i < pxerLayers.size) {
-                        val pixel = pxerLayers[i]!!.bitmap!!.getPixel(x, y)
+                        val pixel = pxerLayers[i]!!.bitmap!![x, y]
                         if (pixel != Color.TRANSPARENT) {
-                            selectedColor = pxerLayers[i]!!.bitmap!!.getPixel(x, y)
+                            selectedColor = pxerLayers[i]!!.bitmap!![x, y]
                             if (dropperCallBack != null) {
                                 dropperCallBack!!.onColorDropped(selectedColor)
                             }
@@ -554,11 +548,12 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
                     }
                 }
             }
+
             Mode.Fill -> run {
                 // The fill tool is brought to us with aid by some open source project online :( I forgot the name
                 if (event.action == MotionEvent.ACTION_UP && x == downX && downY == y) {
                     freeMemory()
-                    val targetColor = bitmapToDraw!!.getPixel(x, y)
+                    val targetColor = bitmapToDraw!![x, y]
                     val toExplore: Queue<Point?> = LinkedList()
                     val explored = HashSet<Point?>()
                     toExplore.add(Point(x, y))
@@ -566,23 +561,16 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
                         val p = toExplore.remove()
                         // Color it
                         currentHistory.add(Pxer(p!!.x, p.y, targetColor))
-                        bitmapToDraw.setPixel(
-                            p.x,
-                            p.y,
-                            ColorUtils.compositeColors(
-                                selectedColor,
-                                bitmapToDraw.getPixel(p.x, p.y),
-                            ),
+                        bitmapToDraw[p.x, p.y] = ColorUtils.compositeColors(
+                            selectedColor,
+                            bitmapToDraw[p.x, p.y],
                         )
                         //
                         var cp: Point?
                         if (isValid(p.x, p.y - 1)) {
                             cp = points!![p.x * picHeight + p.y - 1]
                             if (!explored.contains(cp)) {
-                                if (bitmapToDraw.getPixel(
-                                        cp!!.x,
-                                        cp.y,
-                                    ) == targetColor
+                                if (bitmapToDraw[cp!!.x, cp.y] == targetColor
                                 ) {
                                     toExplore.add(cp)
                                 }
@@ -592,10 +580,7 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
                         if (isValid(p.x, p.y + 1)) {
                             cp = points!![p.x * picHeight + p.y + 1]
                             if (!explored.contains(cp)) {
-                                if (bitmapToDraw.getPixel(
-                                        cp!!.x,
-                                        cp.y,
-                                    ) == targetColor
+                                if (bitmapToDraw[cp!!.x, cp.y] == targetColor
                                 ) {
                                     toExplore.add(cp)
                                 }
@@ -605,10 +590,7 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
                         if (isValid(p.x - 1, p.y)) {
                             cp = points!![(p.x - 1) * picHeight + p.y]
                             if (!explored.contains(cp)) {
-                                if (bitmapToDraw.getPixel(
-                                        cp!!.x,
-                                        cp.y,
-                                    ) == targetColor
+                                if (bitmapToDraw[cp!!.x, cp.y] == targetColor
                                 ) {
                                     toExplore.add(cp)
                                 }
@@ -618,10 +600,7 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
                         if (isValid(p.x + 1, p.y)) {
                             cp = points!![(p.x + 1) * picHeight + p.y]
                             if (!explored.contains(cp)) {
-                                if (bitmapToDraw.getPixel(
-                                        cp!!.x,
-                                        cp.y,
-                                    ) == targetColor
+                                if (bitmapToDraw[cp!!.x, cp.y] == targetColor
                                 ) {
                                     toExplore.add(cp)
                                 }
@@ -633,8 +612,10 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
                     finishAddHistory()
                 }
             }
+
             Mode.Eraser -> run {
             }
+
             Mode.ShapeTool -> run {
             }
         }
@@ -658,21 +639,20 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
 
     override fun onDraw(canvas: Canvas) {
         canvas.drawColor(Color.DKGRAY)
-        canvas.save()
-        canvas.concat(drawMatrix)
-        canvas.drawBitmap(bgbitmap!!, null, picBoundary!!, null)
-        for (i in pxerLayers.size - 1 downTo -1 + 1) {
-            if (pxerLayers[i]!!.visible) {
-                canvas.drawBitmap(
-                    pxerLayers[i]!!.bitmap!!,
-                    null,
-                    picBoundary!!,
-                    null,
-                )
+        canvas.withMatrix(drawMatrix) {
+            drawBitmap(bgbitmap!!, null, picBoundary!!, null)
+            for (i in pxerLayers.size - 1 downTo -1 + 1) {
+                if (pxerLayers[i]!!.visible) {
+                    drawBitmap(
+                        pxerLayers[i]!!.bitmap!!,
+                        null,
+                        picBoundary!!,
+                        null,
+                    )
+                }
             }
+            if (showGrid) drawPath(grid, borderPaint!!)
         }
-        if (showGrid) canvas.drawPath(grid, borderPaint!!)
-        canvas.restore()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -711,12 +691,7 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
         return false
     }
 
-    override fun onScroll(
-        motionEvent: MotionEvent,
-        motionEvent1: MotionEvent,
-        v: Float,
-        v1: Float,
-    ): Boolean {
+    override fun onScroll(e1: MotionEvent?, motionEvent: MotionEvent, v: Float, v1: Float): Boolean {
         drawMatrix.postTranslate(-v, -v1)
         invalidate()
         return true
@@ -724,12 +699,7 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
 
     override fun onLongPress(motionEvent: MotionEvent) {}
 
-    override fun onFling(
-        motionEvent: MotionEvent,
-        motionEvent1: MotionEvent,
-        v: Float,
-        v1: Float,
-    ): Boolean {
+    override fun onFling(e1: MotionEvent?, motionEvent: MotionEvent, v: Float, v1: Float): Boolean {
         return false
     }
 
@@ -826,7 +796,7 @@ class PxerView : View, OnScaleGestureListener, GestureDetector.OnGestureListener
     class PxerHistory(var pxers: ArrayList<Pxer>)
     companion object {
         const val PXER_EXTENSION_NAME = ".pxer"
-        private const val pressDelay = 60L
+        private const val PRESS_DELAY = 60L
         fun cloneList(list: List<Pxer>): ArrayList<Pxer> {
             val clone = ArrayList<Pxer>(list.size)
             list.mapTo(clone) { it.copy() }
